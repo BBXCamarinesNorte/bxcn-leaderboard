@@ -128,7 +128,33 @@ function bulkImport(e){
  }
  e.target.value='';
 }
-function parseCSV(text){
+function searchPlayer(){
+  const query=document.getElementById('playerSearch').value.trim().toLowerCase();
+  const result=document.getElementById('searchResult');
+  if(!query){result.innerHTML='';return}
+  const matches=players.filter(p=>p.name.toLowerCase().includes(query));
+  if(!matches.length){
+    result.innerHTML='<div class="searchEmpty">No player found.</div>';
+    return;
+  }
+  matches.sort((a,b)=>a.name.localeCompare(b.name));
+  result.innerHTML=matches.map(p=>`
+    <div class="searchResult">
+      ${p.photo?`<img class="searchPhoto" src="${escapeHTML(p.photo)}" alt="${escapeHTML(p.name)}">`:''}
+      <div class="searchDetails">
+        <div class="searchName">${escapeHTML(p.name)}</div>
+        <div class="searchStats">
+          <div class="searchStat"><small>Games</small><strong>${p.games||0}</strong></div>
+          <div class="searchStat"><small>Spin</small><strong>${p.spin||0}</strong></div>
+          <div class="searchStat"><small>Burst</small><strong>${p.burst||0}</strong></div>
+          <div class="searchStat"><small>Over</small><strong>${p.over||0}</strong></div>
+          <div class="searchStat"><small>Extreme</small><strong>${p.extreme||0}</strong></div>
+          <div class="searchStat"><small>Total</small><strong>${total(p)}</strong></div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+ function parseCSV(text){
  const rows=[];let row=[],field='',quoted=false;
  for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];
   if(quoted){if(c==='"'&&n==='"'){field+='"';i++}else if(c==='"'){quoted=false}else field+=c}
