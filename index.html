@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BEYBLADE X CAMARINES NORTE LEADERBOARD</title>
 <style>
@@ -28,8 +28,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 8px;text-align:left;
 <button onclick="document.getElementById('bulkFile').click()" class="adminOnly">Bulk Upload Excel / CSV</button><input type="file" id="bulkFile" accept=".xlsx,.xls,.csv" hidden onchange="bulkImport(event)"><button class="red adminOnly" onclick="clearAll()">Reset All</button><button onclick="shareViewerLink()" class="gold">🔗 Share Viewer Link</button><button id="loginBtn" onclick="adminLogin()">Admin Login</button><button id="logoutBtn" onclick="adminLogout()" style="display:none">Exit Admin</button></div></header>
 <div class="toolbar"><div class="mode"><span class="modepill active" id="viewerPill">👁 VIEWER MODE</span><span class="modepill" id="adminPill">🔐 ADMIN MODE</span></div><div class="adminNote">Viewer mode is read-only. Admin access enables editing and data tools.</div></div>
 <div class="viewerNote" id="viewerNote">Viewing the official BXCN Finish Top 10 standings. Data entry and management are restricted to admins.</div>
+<section class="panel searchPanel" id="searchPanel"><h2>🔎 Search Player & Stats</h2><div class="searchRow"><input id="playerSearch" type="search" placeholder="Type player name / IGN to find stats…" autocomplete="off"></div><div id="searchResult" aria-live="polite"></div></section>
 <div class="metrics"><div class="metric"><label>Players Registered</label><strong id="playerMetric">0</strong></div><div class="metric"><label>Total Games Logged</label><strong id="gameMetric">0</strong></div><div class="metric"><label>Total Finish Instances</label><strong id="finishMetric">0</strong></div></div>
-<div id="inputPanelHome"></div>
 <section class="panel adminOnly" id="inputPanel" style="display:none;"><h2>📝 Admin Player Data Entry</h2><div class="formgrid">
 <div class="field full"><label>Player Name / IGN</label><input id="name" placeholder="Enter blader's name"></div>
 <div class="field"><label>Total Games</label><input type="number" min="0" id="games" value="0"></div>
@@ -48,8 +48,8 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 8px;text-align:left;
 <div class="board over"><div class="boardhead"><div class="symbol">🌪️</div><div><h3>OVERLORD</h3><small>OVER FINISH • TOP 10</small></div></div><div class="boardlayout"><div class="boardtable"><table><thead><tr><th>Rank</th><th>Player Name</th><th>Total Games</th><th>Total Over Finish</th></tr></thead><tbody id="overBoard"></tbody></table></div><aside class="topPlayer" id="top3Over"></aside></div></div>
 <div class="board extreme"><div class="boardhead"><div class="symbol">⚡</div><div><h3>EXTREME LORD</h3><small>EXTREME FINISH • TOP 10</small></div></div><div class="boardlayout"><div class="boardtable"><table><thead><tr><th>Rank</th><th>Player Name</th><th>Total Games</th><th>Total Extreme Finish</th></tr></thead><tbody id="extremeBoard"></tbody></table></div><aside class="topPlayer" id="top3Extreme"></aside></div></div>
 </section>
-<section class="panel searchPanel" id="searchPanel"><h2>🔎 Search Player & Stats</h2><div class="searchRow"><input id="playerSearch" type="search" placeholder="Type player name / IGN to find stats…" autocomplete="off"></div><div id="searchResult" aria-live="polite"></div></section>
-<section class="panel manage adminOnly" id="recordsPanel"><h2>📋 Admin — All Player Records</h2><div class="tablewrap"><table><thead><tr><th>Player</th><th>Games</th><th>Spin</th><th>Burst</th><th>Over</th><th>Extreme</th><th>Total Instances</th><th>Actions</th></tr></thead><tbody id="records"></tbody></table></div></section>
+
+<section class="panel manage adminOnly" id="recordsPanel"><h2>📋 Admin — All Player Records</h2><div id="inputPanelHome"></div><div class="tablewrap"><table><thead><tr><th>Player</th><th>Games</th><th>Spin</th><th>Burst</th><th>Over</th><th>Extreme</th><th>Total Instances</th><th>Actions</th></tr></thead><tbody id="records"></tbody></table></div></section>
 <div class="footer">Viewer mode is read-only. Public viewers load shared Supabase data when available. Admin records remain saved in this browser. Admin tools and edits require Admin Mode. Backup regularly.</div>
 </div>
 <script>
@@ -79,13 +79,23 @@ function returnInputPanelHome(){
 }
 function addNewPlayer(){
   if(!isAdmin)return;
-  editing=null;
-  clearForm();
+  returnInputPanelHome();
+  editing='new';
+  render();
   const panel=document.getElementById('inputPanel');
-  if(panel){
-    panel.style.display='block';
-    panel.scrollIntoView({behavior:'smooth',block:'center'});
-  }
+  const host=document.getElementById('inlineEditorHost');
+  if(!panel||!host)return;
+  host.appendChild(panel);
+  panel.style.display='block';
+  clearFormFieldsOnly();
+  panel.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function clearFormFieldsOnly(){
+  const nameField=document.getElementById('name');
+  if(nameField)nameField.value='';
+  statIds.forEach(id=>{const field=document.getElementById(id);if(field)field.value=0;});
+  clearPhoto();
+  refreshTotal();
 }
 function savePlayer(){
   if(!isAdmin){alert('Admin access required.');return}
@@ -93,7 +103,7 @@ function savePlayer(){
   if(!name){alert('Please enter a player name.');return}
   let p={name,photo:currentPhoto};
   statIds.forEach(id=>p[id]=Math.max(0,parseInt(document.getElementById(id).value)||0));
-  let index=editing!==null?editing:players.findIndex(x=>x.name.toLowerCase()===name.toLowerCase());
+  let index=editing!==null&&editing!=='new'?editing:players.findIndex(x=>x.name.toLowerCase()===name.toLowerCase());
   if(index>=0){
     if(!p.photo)p.photo=players[index].photo||'';
     players[index]=p;
@@ -176,7 +186,7 @@ function render(){
       </td>
     </tr>
     `:''}
-  `).join('')||'<tr><td colspan="8" class="empty">No players added.</td></tr>';
+  `).join('')+(editing==='new'?`<tr class="inlineEditorRow"><td colspan="8"><div id="inlineEditorHost"></div></td></tr>`:'')||'<tr><td colspan="8" class="empty">No players added.</td></tr>';
 }
  function renamePlayer(i,v){if(!isAdmin)return;v=v.trim();if(!v){alert('Player name cannot be blank.');render();return}let dup=players.some((p,j)=>j!==i&&p.name.toLowerCase()===v.toLowerCase());if(dup){alert('That name already exists.');render();return}players[i].name=v;save()}
  function exportCSV(){if(!isAdmin)return;let headers=['Player Name','Total Games','Spin Finish','Burst Finish','Over Finish','Extreme Finish','Total Instances'];let rows=players.map(p=>[p.name,p.games,p.spin,p.burst,p.over,p.extreme,total(p)]);let csv=[headers,...rows].map(row=>row.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\r\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='BXCN_Finish_Leaderboard.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
