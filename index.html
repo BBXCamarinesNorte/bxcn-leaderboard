@@ -29,7 +29,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 8px;text-align:left;
 <div class="toolbar"><div class="mode"><span class="modepill active" id="viewerPill">👁 VIEWER MODE</span><span class="modepill" id="adminPill">🔐 ADMIN MODE</span></div><div class="adminNote">Viewer mode is read-only. Admin access enables editing and data tools.</div></div>
 <div class="viewerNote" id="viewerNote">Viewing the official BXCN Finish Top 10 standings. Data entry and management are restricted to admins.</div>
 <div class="metrics"><div class="metric"><label>Players Registered</label><strong id="playerMetric">0</strong></div><div class="metric"><label>Total Games Logged</label><strong id="gameMetric">0</strong></div><div class="metric"><label>Total Finish Instances</label><strong id="finishMetric">0</strong></div></div>
-<section class="panel adminOnly" id="inputPanel"><h2>📝 Admin Player Data Entry</h2><div class="formgrid">
+<section class="panel adminOnly" id="inputPanel" style="display:none;"><h2>📝 Admin Player Data Entry</h2><div class="formgrid">
 <div class="field full"><label>Player Name / IGN</label><input id="name" placeholder="Enter blader's name"></div>
 <div class="field"><label>Total Games</label><input type="number" min="0" id="games" value="0"></div>
 <div class="field"><label>Spin Finish</label><input type="number" min="0" id="spin" value="0"></div>
@@ -70,7 +70,21 @@ function handlePhoto(e){if(!isAdmin)return;const f=e.target.files?.[0];if(!f)ret
 function clearPhoto(){currentPhoto='';const preview=document.getElementById('photoPreview');preview.src='';preview.style.display='none';document.getElementById('photoUpload').value='';document.getElementById('photoStatus').textContent='Optional — upload a player photo to show on their profile card.'}
 function savePlayer(){if(!isAdmin){alert('Admin access required.');return}let name=document.getElementById('name').value.trim();if(!name){alert('Please enter a player name.');return}let p={name,photo:currentPhoto};statIds.forEach(id=>p[id]=Math.max(0,parseInt(document.getElementById(id).value)||0));let index=editing!==null?editing:players.findIndex(x=>x.name.toLowerCase()===name.toLowerCase());if(index>=0){if(!p.photo)p.photo=players[index].photo||'';players[index]=p}else players.push(p);editing=null;save();clearForm()}
 function clearForm(){document.getElementById('name').value='';statIds.forEach(id=>document.getElementById(id).value=0);clearPhoto();editing=null;refreshTotal()}
-function edit(i){if(!isAdmin)return;let p=players[i];document.getElementById('name').value=p.name;statIds.forEach(id=>document.getElementById(id).value=p[id]);currentPhoto=p.photo||'';const preview=document.getElementById('photoPreview');preview.src=currentPhoto;preview.style.display=currentPhoto?'block':'none';document.getElementById('photoStatus').textContent=currentPhoto?'Current photo loaded.':'Optional — upload a player photo to show on their profile card.';editing=i;refreshTotal();window.scrollTo({top:0,behavior:'smooth'})}
+function edit(i){
+  if(!isAdmin)return;
+  let p=players[i];
+  document.getElementById('inputPanel').style.display='block';
+  document.getElementById('name').value=p.name;
+  statIds.forEach(id=>document.getElementById(id).value=p[id]);
+  currentPhoto=p.photo||'';
+  const preview=document.getElementById('photoPreview');
+  preview.src=currentPhoto;
+  preview.style.display=currentPhoto?'block':'none';
+  document.getElementById('photoStatus').textContent=currentPhoto?'Current photo loaded.':'Optional — upload a player photo to show on their profile card.';
+  editing=i;
+  refreshTotal();
+  document.getElementById('inputPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
 function removePlayer(i){if(!isAdmin)return;if(confirm('Delete this player record?')){players.splice(i,1);save()}}
 function clearAll(){if(!isAdmin)return;if(confirm('Delete all player records from this browser?')){players=[];save();clearForm()}}
  function board(key,target){let arr=[...players].sort((a,b)=>(b[key]||0)-(a[key]||0)||(a.games||0)-(b.games||0)||total(b)-total(a)||a.name.localeCompare(b.name)).slice(0,10);let leader=arr[0];let podiumId='top3'+({spin:'Spin',burst:'Burst',over:'Over',extreme:'Extreme'}[key]);let photoPanel=document.getElementById(podiumId);if(photoPanel){photoPanel.innerHTML=leader?`${leader.photo?`<img class="topPlayerPhoto" src="${leader.photo}" alt="${escapeHTML(leader.name)}">`:`<div class="topPlayerFallback">${escapeHTML((leader.name||'?').slice(0,2).toUpperCase())}</div>`}<div class="topPlayerName">${escapeHTML(leader.name)}</div><div class="topPlayerStat">${leader[key]||0}</div><div class="topPlayerGames">${leader.games||0} GAMES</div><div class="topPlayerLabel">TOP PLAYER</div>`:'<div class="topPlayerFallback">—</div><div class="topPlayerLabel">TOP PLAYER</div>'}document.getElementById(target).innerHTML=arr.map((p,i)=>`<tr><td class="rank">${i+1}</td><td>${escapeHTML(p.name)}</td><td>${p.games||0}</td><td class="count">${p[key]||0}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No players yet</td></tr>'}
