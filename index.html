@@ -83,12 +83,12 @@ img{max-width:100%}
 
 /* PROFILE PHOTO SIZE + RESPONSIVE SEARCH PLAYER LAYOUT UPDATE */
 .searchResult{display:grid;grid-template-columns:minmax(180px,25%) minmax(0,1fr);gap:14px;align-items:start}
-.searchResult>.photoWrap,.searchResult>.searchPhotoFallback{width:100%;height:220px;min-height:220px;max-width:260px;align-self:start}
+.searchResult>.photoWrap,.searchResult>.searchPhotoFallback{width:100%;height:240px;min-height:240px;max-width:220px;align-self:start}
 .searchResult .photoWrap .searchPhoto,.searchResult .photoWrap .searchPhotoFallback{width:100%;height:100%;inset:0}
 .searchResult>.searchDetails{min-width:0;width:100%}
 @media(max-width:620px){
- .searchResult{grid-template-columns:100px minmax(0,1fr);gap:10px;align-items:start;padding:10px}
- .searchResult>.photoWrap,.searchResult>.searchPhotoFallback{width:100px;height:120px;min-height:120px;max-width:none}
+ .searchResult{grid-template-columns:90px minmax(0,1fr);gap:10px;align-items:start;padding:10px}
+ .searchResult>.photoWrap,.searchResult>.searchPhotoFallback{width:90px;height:120px;min-height:120px;max-width:none}
  .searchResult .photoWrap .searchPhoto,.searchResult .photoWrap .searchPhotoFallback{width:100%;height:100%}
  .searchStats{gap:5px;margin-top:6px}
  .searchStat{padding:5px 6px}
@@ -105,20 +105,20 @@ img{max-width:100%}
  .favSave{font-size:11px;padding:7px}
 }
 @media(max-width:380px){
- .searchResult{grid-template-columns:84px minmax(0,1fr);gap:8px}
- .searchResult>.photoWrap,.searchResult>.searchPhotoFallback{width:84px;height:104px;min-height:104px}
+ .searchResult{grid-template-columns:80px minmax(0,1fr);gap:8px}
+ .searchResult>.photoWrap,.searchResult>.searchPhotoFallback{width:80px;height:108px;min-height:108px}
  .searchStat{padding:4px 5px}
  .searchStat strong{font-size:11px}
  .favVisual{height:48px}
 }
 
-/* Profile typography enlargement + square favorite Beyblade image frames */
+/* Profile typography enlargement + reduced square favorite Beyblade previews */
 .searchResult .searchName{font-size:32px!important;line-height:1.15}
 .searchResult .searchStat small{font-size:18px!important;letter-spacing:.7px}
 .searchResult .searchStat strong{font-size:28px!important}
 .searchResult .searchStat{padding:10px 12px}
 .favTitle{font-size:28px!important;line-height:1.2}
-.favVisual{height:auto!important;aspect-ratio:1/1!important;min-height:0;box-sizing:border-box}
+.favVisual{width:min(100%,190px)!important;height:auto!important;aspect-ratio:1/1!important;min-height:0;box-sizing:border-box;margin-left:auto;margin-right:auto}
 .favPreviewImg{width:100%;height:100%;object-fit:contain}
 .favCardName{font-size:22px!important;min-height:44px;line-height:1.25}
 .favLabel{font-size:20px!important;letter-spacing:1px}
@@ -126,6 +126,7 @@ img{max-width:100%}
 .favSave{font-size:22px!important;padding:12px!important}
 .favStatus{font-size:22px!important;line-height:1.3;min-height:28px}
 .favVisual .favFallback{font-size:44px!important}
+@media(max-width:620px){.favVisual{width:min(100%,112px)!important}.favCardName{font-size:16px!important;min-height:32px}.favLabel{font-size:14px!important}.favSlot select{font-size:14px!important;padding:7px!important}.favSave{font-size:16px!important;padding:9px!important}.favStatus{font-size:14px!important;min-height:20px}.favVisual .favFallback{font-size:28px!important}}
 .favVisual .favFallback small{font-size:16px!important;letter-spacing:1px}
 @media(max-width:620px){
  .searchResult .searchName{font-size:26px!important}
