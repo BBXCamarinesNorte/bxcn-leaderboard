@@ -16,6 +16,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:9px 8px;text-align:left;
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0}.mode{display:flex;gap:8px;align-items:center}.modepill{border:1px solid var(--line);border-radius:99px;padding:7px 11px;color:var(--muted);font-size:12px}.modepill.active{border-color:var(--gold);color:var(--gold)}
 .viewerNote{display:none;background:#11202a;border:1px solid #27546b;border-radius:10px;padding:10px 13px;color:#b8eaff;margin:12px 0;font-size:13px}.adminNote{color:var(--muted);font-size:12px}
 .adminOnly.viewerHidden{display:none!important}
+.photoWrap{width:78px;height:78px;flex-shrink:0;position:relative}.photoWrap .searchPhoto,.photoWrap .searchPhotoFallback{position:absolute;inset:0;width:78px;height:78px}
 .searchPanel{margin-top:14px}.searchRow{display:flex;gap:10px;align-items:center}.searchRow input{flex:1}.searchResult{display:flex;align-items:center;gap:13px;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,#192130,#10151e)}.searchPhotoFallback{width:78px;height:78px;flex-shrink:0;border-radius:10px;object-fit:cover;background:linear-gradient(145deg,#252e3e,#10151e);border:1px solid #39465c;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#d9e2f0}.searchPhoto{width:78px;height:78px;flex-shrink:0;border-radius:10px;object-fit:cover;background:#252e3e;border:1px solid #39465c}.searchDetails{flex:1;min-width:0}.searchName{font-weight:900;font-size:16px;word-break:break-word}.searchStats{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.searchStat{background:#0b1119;border:1px solid #2b3547;border-radius:7px;padding:6px 8px}.searchStat small{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}.searchStat strong{font-size:14px}.searchBreakdown{color:var(--muted);font-size:12px;margin-top:8px;line-height:1.6}.searchEmpty{color:var(--muted);padding:12px 0;font-size:13px}
 .photoPreview{width:90px;height:90px;object-fit:cover;border-radius:12px;border:1px solid var(--line);display:none}
 
@@ -412,7 +413,7 @@ const beybladeCatalog=[{"name":"Aero Pegasus","image":"https://img.beybladehub.a
 const favoriteCache={};
 function favoriteKey(name){return String(name||'').trim().toLowerCase();}
 function beyBadge(name){if(!name)return 'BX';return name.split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase();}
-async function fetchPlayerFavorites(name){const key=favoriteKey(name);if(favoriteCache[key])return favoriteCache[key];const empty={player_name:name,beyblade_1:'',beyblade_2:'',beyblade_3:''};try{const url=`${SUPABASE_URL}/rest/v1/${FAVORITES_TABLE}?player_name=eq.${encodeURIComponent(name)}&select=player_name,beyblade_1,beyblade_2,beyblade_3`;const res=await fetch(url,{headers:{apikey:SUPABASE_KEY},cache:'no-store'});if(!res.ok)throw new Error('Favorites read '+res.status);const rows=await res.json();favoriteCache[key]=rows[0]||empty;}catch(err){favoriteCache[key]=empty;favoriteCache[key]._error=err.message;}return favoriteCache[key];}
+async function fetchPlayerFavorites(name){const key=favoriteKey(name);if(favoriteCache[key])return favoriteCache[key];const empty={player_name:name,beyblade_1:'',beyblade_2:'',beyblade_3:''};const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),7000);try{const url=`${SUPABASE_URL}/rest/v1/${FAVORITES_TABLE}?player_name=eq.${encodeURIComponent(name)}&select=player_name,beyblade_1,beyblade_2,beyblade_3`;const res=await fetch(url,{headers:{apikey:SUPABASE_KEY},cache:'no-store',signal:controller.signal});if(!res.ok)throw new Error('Favorites read '+res.status);const rows=await res.json();favoriteCache[key]=rows[0]||empty;}catch(err){favoriteCache[key]=empty;favoriteCache[key]._error=err.name==='AbortError'?'Request timed out':err.message;}finally{clearTimeout(timeout);}return favoriteCache[key];}
 function catalogItem(name){return beybladeCatalog.find(x=>x.name===name)||{name,image:''};}
 function favoriteImageHTML(name){const item=catalogItem(name);if(item.image)return `<img class="favPreviewImg" src="${escapeHTML(item.image)}" alt="${escapeHTML(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`;return '';}
 function favoriteFallbackHTML(name){return `<div class="favFallback" ${name&&catalogItem(name).image?'style="display:none"':''}><span>${name?escapeHTML(beyBadge(name)):'★'}</span><small>${name?'BEYBLADE X':'EMPTY SLOT'}</small></div>`;}
@@ -426,13 +427,23 @@ async function searchPlayer(){
   const result=document.getElementById('searchResult');
   if(!query){result.innerHTML='';return}
   const matches=players.filter(p=>p.name.toLowerCase().includes(query));
-  if(!matches.length){result.innerHTML='<div class="searchEmpty">No player found.</div>';return;}
+  if(!matches.length){result.innerHTML='<div class="searchEmpty">No player found.</div>';return}
   matches.sort((a,b)=>a.name.localeCompare(b.name));
-  result.innerHTML=matches.map(p=>`<div class="searchResult" id="profile_${favoriteKey(p.name).replace(/[^a-z0-9]/g,'_')}">${p.photo?`<img class="searchPhoto" src="${escapeHTML(p.photo)}" alt="${escapeHTML(p.name)}" onerror="this.outerHTML='<div class=\"searchPhotoFallback\">${escapeHTML(beyBadge(p.name))}</div>'">`:`<div class="searchPhotoFallback">${escapeHTML(beyBadge(p.name))}</div>`}<div class="searchDetails"><div class="searchName">${escapeHTML(p.name)}</div><div class="searchStats"><div class="searchStat"><small>Games</small><strong>${p.games||0}</strong></div><div class="searchStat"><small>Spin</small><strong>${p.spin||0}</strong></div><div class="searchStat"><small>Burst</small><strong>${p.burst||0}</strong></div><div class="searchStat"><small>Over</small><strong>${p.over||0}</strong></div><div class="searchStat"><small>Extreme</small><strong>${p.extreme||0}</strong></div><div class="searchStat"><small>Total</small><strong>${total(p)}</strong></div></div><div class="favoriteLoading">Loading favorite Beyblades…</div></div></div>`).join('');
-  await Promise.all(matches.map(async p=>{const rec=await fetchPlayerFavorites(p.name);const box=document.getElementById('profile_'+favoriteKey(p.name).replace(/[^a-z0-9]/g,'_'));if(box){const details=box.querySelector('.searchDetails');const loading=details?.querySelector('.favoriteLoading');if(loading)loading.outerHTML=renderFavoriteProfile(p.name,rec);}}));
+  result.innerHTML=matches.map(p=>{
+    const safeName=escapeHTML(p.name),fallback=escapeHTML(beyBadge(p.name));
+    const photoMarkup=p.photo
+      ? `<div class="photoWrap"><img class="searchPhoto" src="${escapeHTML(p.photo)}" alt="${safeName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="searchPhotoFallback" style="display:none">${fallback}</div></div>`
+      : `<div class="searchPhotoFallback">${fallback}</div>`;
+    return `<div class="searchResult" id="profile_${favoriteKey(p.name).replace(/[^a-z0-9]/g,'_')}">${photoMarkup}<div class="searchDetails"><div class="searchName">${safeName}</div><div class="searchStats"><div class="searchStat"><small>Games</small><strong>${p.games||0}</strong></div><div class="searchStat"><small>Spin</small><strong>${p.spin||0}</strong></div><div class="searchStat"><small>Burst</small><strong>${p.burst||0}</strong></div><div class="searchStat"><small>Over</small><strong>${p.over||0}</strong></div><div class="searchStat"><small>Extreme</small><strong>${p.extreme||0}</strong></div><div class="searchStat"><small>Total</small><strong>${total(p)}</strong></div></div><div class="favoriteLoading">Loading favorite Beyblades…</div></div></div>`;
+  }).join('');
+  await Promise.all(matches.map(async p=>{
+    const rec=await fetchPlayerFavorites(p.name);
+    const box=document.getElementById('profile_'+favoriteKey(p.name).replace(/[^a-z0-9]/g,'_'));
+    if(box){const details=box.querySelector('.searchDetails');const loading=details?.querySelector('.favoriteLoading');if(loading)loading.outerHTML=renderFavoriteProfile(p.name,rec);}
+  }));
 }
 
- function parseCSV(text){
+function parseCSV(text){
  const rows=[];let row=[],field='',quoted=false;
  for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];
   if(quoted){if(c==='"'&&n==='"'){field+='"';i++}else if(c==='"'){quoted=false}else field+=c}
