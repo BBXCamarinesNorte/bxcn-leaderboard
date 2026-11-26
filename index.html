@@ -414,7 +414,7 @@ const beybladeCatalog=[{"name":"Aero Pegasus","image":"https://img.beybladehub.a
 const favoriteCache={};
 function favoriteKey(name){return String(name||'').trim().toLowerCase();}
 function beyBadge(name){if(!name)return 'BX';return name.split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase();}
-async function fetchPlayerFavorites(name){const key=favoriteKey(name);if(favoriteCache[key])return favoriteCache[key];const empty={player_name:name,beyblade_1:'',beyblade_2:'',beyblade_3:''};try{const url=`${SUPABASE_URL}/rest/v1/${FAVORITES_TABLE}?player_name=eq.${encodeURIComponent(name)}&select=player_name,beyblade_1,beyblade_2,beyblade_3`;const res=await fetch(url,{headers:{apikey:SUPABASE_KEY},cache:'no-store'});if(!res.ok)throw new Error('Favorites read '+res.status);const rows=await res.json();favoriteCache[key]=rows[0]||empty;}catch(err){favoriteCache[key]=empty;favoriteCache[key]._error=err.message;}return favoriteCache[key];}
+async function fetchPlayerFavorites(name){const key=favoriteKey(name);if(favoriteCache[key])return favoriteCache[key];const empty={player_name:name,beyblade_1:'',beyblade_2:'',beyblade_3:''};try{const url=`${SUPABASE_URL}/rest/v1/${FAVORITES_TABLE}?player_name=eq.${encodeURIComponent(name)}&select=player_name,beyblade_1,beyblade_2,beyblade_3`;const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),5000);const res=await fetch(url,{headers:{apikey:SUPABASE_KEY},cache:'no-store',signal:controller.signal});clearTimeout(timer);if(!res.ok)throw new Error('Favorites read '+res.status);const rows=await res.json();favoriteCache[key]=rows[0]||empty;}catch(err){favoriteCache[key]=empty;favoriteCache[key]._error=err.message;}return favoriteCache[key];}
 function catalogItem(name){return beybladeCatalog.find(x=>x.name===name)||{name,image:''};}
 function favoriteImageHTML(name){const item=catalogItem(name);if(item.image)return `<img class="favPreviewImg" src="${escapeHTML(item.image)}" alt="${escapeHTML(name)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`;return '';}
 function favoriteFallbackHTML(name){return `<div class="favFallback" ${name&&catalogItem(name).image?'style="display:none"':''}><span>${name?escapeHTML(beyBadge(name)):'★'}</span><small>${name?'BEYBLADE X':'EMPTY SLOT'}</small></div>`;}
@@ -430,8 +430,24 @@ async function searchPlayer(){
   const matches=players.filter(p=>p.name.toLowerCase().includes(query));
   if(!matches.length){result.innerHTML='<div class="searchEmpty">No player found.</div>';return;}
   matches.sort((a,b)=>a.name.localeCompare(b.name));
-  result.innerHTML=matches.map(p=>`<div class="searchResult" id="profile_${favoriteKey(p.name).replace(/[^a-z0-9]/g,'_')}">${p.photo?`<img class="searchPhoto" src="${escapeHTML(p.photo)}" alt="${escapeHTML(p.name)}" onerror="this.outerHTML='<div class=\"searchPhotoFallback\">${escapeHTML(beyBadge(p.name))}</div>'">`:`<div class="searchPhotoFallback">${escapeHTML(beyBadge(p.name))}</div>`}<div class="searchDetails"><div class="searchName">${escapeHTML(p.name)}</div><div class="searchStats"><div class="searchStat"><small>Games</small><strong>${p.games||0}</strong></div><div class="searchStat"><small>Spin</small><strong>${p.spin||0}</strong></div><div class="searchStat"><small>Burst</small><strong>${p.burst||0}</strong></div><div class="searchStat"><small>Over</small><strong>${p.over||0}</strong></div><div class="searchStat"><small>Extreme</small><strong>${p.extreme||0}</strong></div><div class="searchStat"><small>Total</small><strong>${total(p)}</strong></div></div><div class="favoriteLoading">Loading favorite Beyblades…</div></div></div>`).join('');
-  await Promise.all(matches.map(async p=>{const rec=await fetchPlayerFavorites(p.name);const box=document.getElementById('profile_'+favoriteKey(p.name).replace(/[^a-z0-9]/g,'_'));if(box){const details=box.querySelector('.searchDetails');const loading=details?.querySelector('.favoriteLoading');if(loading)loading.outerHTML=renderFavoriteProfile(p.name,rec);}}));
+  // Render profiles and the complete favorite dropdown catalog immediately.
+  result.innerHTML=matches.map(p=>{
+    const key=favoriteKey(p.name),suffix=key.replace(/[^a-z0-9]/g,'_');
+    const cached=favoriteCache[key]||{player_name:p.name,beyblade_1:'',beyblade_2:'',beyblade_3:''};
+    return `<div class="searchResult" id="profile_${suffix}">${p.photo?`<img class="searchPhoto" src="${escapeHTML(p.photo)}" alt="${escapeHTML(p.name)}" onerror="this.outerHTML='<div class=\"searchPhotoFallback\">${escapeHTML(beyBadge(p.name))}</div>'">`:`<div class="searchPhotoFallback">${escapeHTML(beyBadge(p.name))}</div>`}<div class="searchDetails"><div class="searchName">${escapeHTML(p.name)}</div><div class="searchStats"><div class="searchStat"><small>Games</small><strong>${p.games||0}</strong></div><div class="searchStat"><small>Spin</small><strong>${p.spin||0}</strong></div><div class="searchStat"><small>Burst</small><strong>${p.burst||0}</strong></div><div class="searchStat"><small>Over</small><strong>${p.over||0}</strong></div><div class="searchStat"><small>Extreme</small><strong>${p.extreme||0}</strong></div><div class="searchStat"><small>Total</small><strong>${total(p)}</strong></div></div>${renderFavoriteProfile(p.name,cached)}</div></div>`;
+  }).join('');
+  // Fetch saved picks in the background; UI remains usable if Supabase is slow.
+  const searchSnapshot=query;
+  matches.forEach(async p=>{
+    const key=favoriteKey(p.name);
+    if(favoriteCache[key])return;
+    const rec=await fetchPlayerFavorites(p.name);
+    if(document.getElementById('playerSearch')?.value.trim().toLowerCase()!==searchSnapshot)return;
+    const box=document.getElementById('profile_'+key.replace(/[^a-z0-9]/g,'_'));
+    if(!box)return;
+    const profile=box.querySelector('.favProfile');
+    if(profile)profile.outerHTML=renderFavoriteProfile(p.name,rec);
+  });
 }
 
  function parseCSV(text){
