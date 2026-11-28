@@ -301,6 +301,17 @@ function toggleShowAll(key){expandedBoards[key]=!expandedBoards[key];const targe
 function board(key,target){let sorted=[...players].sort((a,b)=>(b[key]||0)-(a[key]||0)||(a.games||0)-(b.games||0)||total(b)-total(a)||a.name.localeCompare(b.name));let arr=expandedBoards[key]?sorted:sorted.slice(0,10);let leader=sorted[0];let podiumId='top3'+({spin:'Spin',burst:'Burst',over:'Over',extreme:'Extreme'}[key]);let photoPanel=document.getElementById(podiumId);if(photoPanel){photoPanel.innerHTML=leader?`${leader.photo?`<img class="topPlayerPhoto" src="${leader.photo}" alt="${escapeHTML(leader.name)}">`:`<div class="topPlayerFallback">${escapeHTML((leader.name||'?').slice(0,2).toUpperCase())}</div>`}<div class="topPlayerName">${escapeHTML(leader.name)}</div><div class="topPlayerStat">${leader[key]||0}</div><div class="topPlayerGames">${leader.games||0} GAMES</div><div class="topPlayerLabel">TOP PLAYER</div>`:'<div class="topPlayerFallback">—</div><div class="topPlayerLabel">TOP PLAYER</div>'}document.getElementById(target).innerHTML=arr.map((p,i)=>`<tr><td class="rank">${i+1}</td><td>${escapeHTML(p.name)}</td><td>${p.games||0}</td><td class="count">${p[key]||0}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No players yet</td></tr>';let btn=document.getElementById('showAll'+key.charAt(0).toUpperCase()+key.slice(1));if(btn){btn.textContent=expandedBoards[key]?'SHOW TOP 10':'SHOW ALL';btn.setAttribute('aria-expanded',String(expandedBoards[key]));btn.style.display=sorted.length>10?'block':'none';}}
 let recordsSortMode='nameAsc';function getFilteredRecordIndexes(){const q=(document.getElementById('recordsSearch')?.value||'').trim().toLowerCase();const sortMode=document.getElementById('recordsSort')?.value||recordsSortMode;recordsSortMode=sortMode;let list=players.map((p,index)=>({p,index})).filter(x=>!q||(x.p.name||'').toLowerCase().includes(q));const sortFns={nameAsc:(a,b)=>(a.p.name||'').localeCompare(b.p.name||''),nameDesc:(a,b)=>(b.p.name||'').localeCompare(a.p.name||''),totalDesc:(a,b)=>total(b.p)-total(a.p),totalAsc:(a,b)=>total(a.p)-total(b.p),gamesDesc:(a,b)=>(b.p.games||0)-(a.p.games||0),spinDesc:(a,b)=>(b.p.spin||0)-(a.p.spin||0),burstDesc:(a,b)=>(b.p.burst||0)-(a.p.burst||0),overDesc:(a,b)=>(b.p.over||0)-(a.p.over||0),extremeDesc:(a,b)=>(b.p.extreme||0)-(a.p.extreme||0)};list.sort(sortFns[sortMode]||sortFns.nameAsc);return list;}
 function render(){
+  // Preserve the shared admin input panel before rebuilding the records table.
+  // The editor is temporarily placed inside #inlineEditorHost; replacing the
+  // tbody HTML during imports/search/sort would otherwise detach the panel.
+  const persistentInputPanel=document.getElementById('inputPanel');
+  const persistentInputHome=document.getElementById('inputPanelHome');
+  if(persistentInputPanel && persistentInputHome && persistentInputHome.parentNode){
+    if(persistentInputPanel.parentNode!==persistentInputHome.parentNode || persistentInputPanel.previousElementSibling!==persistentInputHome){
+      persistentInputHome.parentNode.insertBefore(persistentInputPanel,persistentInputHome.nextSibling);
+    }
+  }
+
   document.getElementById('playerMetric').textContent=players.length;
   document.getElementById('gameMetric').textContent=players.reduce((a,p)=>a+(p.games||0),0);
   document.getElementById('finishMetric').textContent=players.reduce((a,p)=>a+total(p),0);
@@ -333,6 +344,14 @@ function render(){
     </tr>
     `:''}
   `).join('')+(editing==='new'?`<tr class="inlineEditorRow"><td colspan="8"><div id="inlineEditorHost"></div></td></tr>`:'')||'<tr><td colspan="8" class="empty">No players added.</td></tr>';
+
+  // Reattach the same input-panel node to the newly-created inline host.
+  // If filtering hides the edited player's row, the form safely stays at home.
+  const rebuiltEditorHost=document.getElementById('inlineEditorHost');
+  if(persistentInputPanel && rebuiltEditorHost && editing!==null){
+    rebuiltEditorHost.appendChild(persistentInputPanel);
+  }
+
   renderChampions();
 }
  function renamePlayer(i,v){if(!isAdmin)return;v=v.trim();if(!v){alert('Player name cannot be blank.');render();return}let dup=players.some((p,j)=>j!==i&&p.name.toLowerCase()===v.toLowerCase());if(dup){alert('That name already exists.');render();return}players[i].name=v;save()}
